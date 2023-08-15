@@ -1,27 +1,25 @@
 function onCreate() {
   EdocsApi.setAttributeValue({ code: "employee", value: CurrentDocument.initiatorId });
 }
-function onBeforeCardSave() {
-  setEmployeeInfo();
-}
 
 function onCardInitialize() {
-  setemployeeId();
-  setEmployeeInfo();
-  setdirectorInityator();
   onChangecurrencyEUR();
   onChangedateRate();
   onChangeCurrencyFrom();
   onChangeCurrencyTo();
   onChangeDate();
-  onChangetravelDirection();
-  setRate();
+  onChangetravelDirection(true);
+  onChangeemployee();
 }
 
 function onChangeemployee() {
   EdocsApi.setAttributeValue({ code: "directorInityator", value: null, text: null });
-  setemployeeId();
-  if (EdocsApi.getAttributeValue("employee").value) setdirectorInityator();
+
+  if (EdocsApi.getAttributeValue("employee").value) {
+    setdirectorInityator();
+    setemployeeId();
+    setEmployeeInfo();
+  }
 }
 
 function setemployeeId() {
@@ -157,6 +155,7 @@ function onChangeTaxi() {
 }
 function onChangeFlight() {
   calculateTransportation();
+  //setCalculationOfValues();
 }
 
 function calculateTotal() {
@@ -254,6 +253,7 @@ function onChangeDate() {
 
 //3. Заповнити інформацію по співробітнику методом зовнішньої системи EdocsGetEmploeeInfo
 function setEmployeeInfo() {
+  debugger;
   const employeeId = EdocsApi.getAttributeValue("employeeId").value;
   if (employeeId) {
     const response = EdocsApi.runExternalFunction("Navision", "EdocsGetEmploeeInfo", {
@@ -295,26 +295,145 @@ function setControlHidden(code) {
   EdocsApi.setControlProperties(control);
 }
 
-function onChangetravelDirection() {
-  if (EdocsApi.getAttributeValue("travelDirection").value == "За кордон") {
-    setControlShow("country");
-    //setControlShow("CurrencyFrom");
-    //setControlShow("CurrencyTo");
-    //setControlShow("Date");
-    //setControlShow("CrossCourse");
-    setControlShow("currencyEUR");
-    setControlShow("dateRate");
-    setControlShow("rate");
-    setControlShow("amountCurrency");
+function onChangetravelDirection(clearOnInit = false) {
+  if (clearOnInit) {
   } else {
-    setControlHidden("country");
-    //setControlHidden("CurrencyFrom");
-    //setControlHidden("CurrencyTo");
-    //setControlHidden("Date");
-    //setControlHidden("CrossCourse");
-    setControlHidden("currencyEUR");
-    setControlHidden("dateRate");
-    setControlHidden("rate");
-    setControlHidden("amountCurrency");
+    if (EdocsApi.getAttributeValue("travelDirection").value == "За кордон") {
+      setControlShow("country");
+      //setControlShow("CurrencyFrom");
+      //setControlShow("CurrencyTo");
+      //setControlShow("Date");
+      //setControlShow("CrossCourse");
+      setControlShow("currencyEUR");
+      setControlShow("dateRate");
+      setControlShow("rate");
+      setControlShow("amountCurrency");
+    } else {
+      setControlHidden("country");
+      //setControlHidden("CurrencyFrom");
+      //setControlHidden("CurrencyTo");
+      //setControlHidden("Date");
+      //setControlHidden("CrossCourse");
+      setControlHidden("currencyEUR");
+      setControlHidden("dateRate");
+      setControlHidden("rate");
+      setControlHidden("amountCurrency");
+    }
+
+    setmoney_per_day();
   }
+}
+
+function validationNumber(attr) {
+  let number;
+  attr.value ? (number = parseFloat(attr.value.split(",").join(".")).toFixed(2)) : (number = 0);
+  return number;
+}
+
+function setValueAttr(code, value, text) {
+  const attr = EdocsApi.getAttributeValue(code);
+  attr.value = value;
+  attr.text = text;
+  EdocsApi.setAttributeValue(attr);
+}
+
+function setCalculationOfValues() {
+  debugger;
+  let days = EdocsApi.getAttributeValue("days").value;
+  if (days.value && setmoney_per_day()) {
+    days = days.value;
+
+    let flightENG = EdocsApi.getAttributeValue("FlightENG");
+    let hotelENG = EdocsApi.getAttributeValue("HotelENG");
+    let taxiENG = EdocsApi.getAttributeValue("TaxiENG");
+    let car_relatedENG = EdocsApi.getAttributeValue("Car_relatedENG");
+    let publicTransportENG = EdocsApi.getAttributeValue("PublicTransportENG");
+    let rate = 1;
+    let flight = EdocsApi.getAttributeValue("Flight");
+    let hotel = EdocsApi.getAttributeValue("Hotel");
+    let taxi = EdocsApi.getAttributeValue("Taxi");
+    let other_costs = EdocsApi.getAttributeValue("Other_costs");
+    let other_costsENG = EdocsApi.getAttributeValue("other_costsENG");
+    let money_per_day = EdocsApi.getAttributeValue("money_per_day").text;
+    let travelDirection = EdocsApi.getAttributeValue("travelDirection");
+    if (travelDirection.value == "За кордон") {
+      rate = EdocsApi.getAttributeValue("rate").value;
+    }
+
+    flightENG = validationNumber(flightENG);
+    hotelENG = validationNumber(hotelENG);
+    taxiENG = validationNumber(taxiENG);
+    car_relatedENG = validationNumber(car_relatedENG);
+    publicTransportENG = validationNumber(publicTransportENG);
+    flight = validationNumber(flight);
+    hotel = validationNumber(hotel);
+    taxi = validationNumber(taxi);
+    other_costs = validationNumber(other_costs);
+    other_costsENG = validationNumber(other_costsENG);
+
+    flight = (flightENG * rate).toFixed(2);
+    hotel = (hotelENG * rate).toFixed(2);
+    taxi = (taxiENG * rate).toFixed(2);
+    car_related = (car_relatedENG * rate).toFixed(2);
+    publicTransport = (publicTransportENG * rate).toFixed(2);
+    other_costs = (other_costsENG * rate).toFixed(2);
+    debugger;
+    let amountCurrency = Number(flightENG) + Number(hotelENG) + Number(taxiENG) + Number(car_relatedENG) + Number(publicTransportENG) + Number(other_costsENG);
+    let sumAll = money_per_day * days;
+
+    setValueAttr("Flight", flight);
+    setValueAttr("Hotel", hotel);
+    setValueAttr("Taxi", taxi);
+    setValueAttr("Car_related", car_related);
+    setValueAttr("PublicTransport", publicTransport);
+    setValueAttr("Other_costs", other_costs);
+    setValueAttr("amountCurrency", amountCurrency);
+    setValueAttr("sumAll", sumAll);
+  }
+}
+function onButtonPushKnopka() {
+  setCalculationOfValues();
+}
+
+function setmoney_per_day() {
+  debugger;
+  const travelDirection = EdocsApi.getAttributeValue("travelDirection");
+  if (travelDirection.value) {
+    switch (travelDirection.value) {
+      case "Україна":
+        setValueAttr("money_per_day", 1, "850.00");
+        break;
+      case "За кордон":
+        setValueAttr("money_per_day", 2, "1750.00");
+        break;
+      default:
+        break;
+    }
+  }
+  return travelDirection.value;
+}
+
+function onChangeFlightENG() {
+  setCalculationOfValues();
+}
+function onChangeHotelENG() {
+  setCalculationOfValues();
+}
+function onChangeTaxiENG() {
+  setCalculationOfValues();
+}
+function onChangeCar_relatedENG() {
+  setCalculationOfValues();
+}
+function onChangePublicTransportENG() {
+  setCalculationOfValues();
+}
+function onChangeOther_costsENG() {
+  setCalculationOfValues();
+}
+function onChangedays() {
+  setCalculationOfValues();
+}
+function onChangemoney_per_day() {
+  setCalculationOfValues();
 }

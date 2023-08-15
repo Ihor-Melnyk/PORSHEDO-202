@@ -23,6 +23,7 @@ function setCalculationOfValues() {
   let hotel = EdocsApi.getAttributeValue("Hotel");
   let taxi = EdocsApi.getAttributeValue("Taxi");
   let other_costs = EdocsApi.getAttributeValue("Other_costs");
+  let other_costsENG = EdocsApi.getAttributeValue("other_costsENG");
   const days = EdocsApi.getAttributeValue("days");
   const money_per_day = EdocsApi.getAttributeValue("money_per_day");
 
@@ -36,6 +37,7 @@ function setCalculationOfValues() {
   hotel = validationNumber(hotel);
   taxi = validationNumber(taxi);
   other_costs = validationNumber(other_costs);
+  other_costsENG = validationNumber(other_costsENG);
 
   flight = (flightENG * rate).toFixed(2);
   hotel = (hotelENG * rate).toFixed(2);
