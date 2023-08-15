@@ -141,44 +141,8 @@ function getWorkDays(fromDate, toDate) {
   return daysCount;
 }
 
-function calculateTransportation() {
-  EdocsApi.setAttributeValue({ code: "Transportation", value: Number(EdocsApi.getAttributeValue("Flight").value) + Number(EdocsApi.getAttributeValue("Taxi").value) + Number(EdocsApi.getAttributeValue("PublicTransport").value), text: null });
-
-  onChangeTransportation();
-}
-
-function onChangePublicTransport() {
-  calculateTransportation();
-}
-function onChangeTaxi() {
-  calculateTransportation();
-}
-function onChangeFlight() {
-  calculateTransportation();
-  //setCalculationOfValues();
-}
-
-function calculateTotal() {
-  EdocsApi.setAttributeValue({ code: "Total", value: Number(EdocsApi.getAttributeValue("Transportation").value) + Number(EdocsApi.getAttributeValue("Hotel").value) + Number(EdocsApi.getAttributeValue("Car_related").value) + Number(EdocsApi.getAttributeValue("Other_costs").value), text: null });
-}
-
-function onChangeTransportation() {
-  calculateTotal();
-}
-function onChangeHotel() {
-  calculateTotal();
-}
-function onChangeCar_related() {
-  calculateTotal();
-}
-function onChangeOther_costs() {
-  calculateTotal();
-}
-
 //1.Заповнити поле Rate методом зовнішньої системи EdocsGetExchangeRate
 function setRate() {
-  debugger;
-
   const currencyEUR = EdocsApi.getAttributeValue("currencyEUR");
 
   const dateRate = EdocsApi.getAttributeValue("dateRate").value;
@@ -253,7 +217,6 @@ function onChangeDate() {
 
 //3. Заповнити інформацію по співробітнику методом зовнішньої системи EdocsGetEmploeeInfo
 function setEmployeeInfo() {
-  debugger;
   const employeeId = EdocsApi.getAttributeValue("employeeId").value;
   if (employeeId) {
     const response = EdocsApi.runExternalFunction("Navision", "EdocsGetEmploeeInfo", {
@@ -282,6 +245,13 @@ function setEmployeeInfo() {
     EdocsApi.setAttributeValue({ code: "department", value: null, text: null });
   }
 }
+
+function setControlRequired(code, required = true) {
+  const control = EdocsApi.getControlProperties(code);
+  control.required = required;
+  EdocsApi.setControlProperties(control);
+}
+
 //Скривати поле Країна
 function setControlShow(code) {
   const control = EdocsApi.getControlProperties(code);
@@ -295,32 +265,51 @@ function setControlHidden(code) {
   EdocsApi.setControlProperties(control);
 }
 
+function setcountry() {
+  const travelDirection = EdocsApi.getAttributeValue("travelDirection").value;
+  if (travelDirection && travelDirection == "Україна") {
+    setValueAttr("country", travelDirection);
+  } else {
+    setValueAttr("country", null);
+  }
+}
+
 function onChangetravelDirection(clearOnInit = false) {
   if (clearOnInit) {
-  } else {
     if (EdocsApi.getAttributeValue("travelDirection").value == "За кордон") {
       setControlShow("country");
-      //setControlShow("CurrencyFrom");
-      //setControlShow("CurrencyTo");
-      //setControlShow("Date");
-      //setControlShow("CrossCourse");
       setControlShow("currencyEUR");
       setControlShow("dateRate");
       setControlShow("rate");
       setControlShow("amountCurrency");
+      setControlRequired("currencyEUR");
+      setControlRequired("dateRate");
     } else {
       setControlHidden("country");
-      //setControlHidden("CurrencyFrom");
-      //setControlHidden("CurrencyTo");
-      //setControlHidden("Date");
-      //setControlHidden("CrossCourse");
       setControlHidden("currencyEUR");
       setControlHidden("dateRate");
       setControlHidden("rate");
       setControlHidden("amountCurrency");
+      setControlRequired("currencyEUR", false);
+      setControlRequired("dateRate", false);
+    }
+  } else {
+    if (EdocsApi.getAttributeValue("travelDirection").value == "За кордон") {
+      setControlShow("currencyEUR");
+      setControlShow("dateRate");
+      setControlShow("rate");
+      setControlRequired("currencyEUR");
+      setControlRequired("dateRate");
+    } else {
+      setControlHidden("currencyEUR");
+      setControlHidden("dateRate");
+      setControlHidden("rate");
+      setControlRequired("currencyEUR", false);
+      setControlRequired("dateRate", false);
     }
 
-    setmoney_per_day();
+    setcountry();
+    setCalculationOfValues();
   }
 }
 
@@ -338,9 +327,10 @@ function setValueAttr(code, value, text) {
 }
 
 function setCalculationOfValues() {
-  debugger;
-  let days = EdocsApi.getAttributeValue("days").value;
-  if (days.value && setmoney_per_day()) {
+  const travelDirection = setmoney_per_day();
+
+  let days = EdocsApi.getAttributeValue("days");
+  if (days.value && travelDirection) {
     days = days.value;
 
     let flightENG = EdocsApi.getAttributeValue("FlightENG");
@@ -377,11 +367,9 @@ function setCalculationOfValues() {
     car_related = (car_relatedENG * rate).toFixed(2);
     publicTransport = (publicTransportENG * rate).toFixed(2);
     other_costs = (other_costsENG * rate).toFixed(2);
-    debugger;
     let amountCurrency = Number(flightENG) + Number(hotelENG) + Number(taxiENG) + Number(car_relatedENG) + Number(publicTransportENG) + Number(other_costsENG);
     let sumAll = money_per_day * days;
-
-    setValueAttr("Flight", flight);
+    const total = setValueAttr("Flight", flight);
     setValueAttr("Hotel", hotel);
     setValueAttr("Taxi", taxi);
     setValueAttr("Car_related", car_related);
@@ -389,14 +377,12 @@ function setCalculationOfValues() {
     setValueAttr("Other_costs", other_costs);
     setValueAttr("amountCurrency", amountCurrency);
     setValueAttr("sumAll", sumAll);
+    EdocsApi.setAttributeValue({ code: "Total", value: Number(EdocsApi.getAttributeValue("Transportation").value) + Number(EdocsApi.getAttributeValue("Hotel").value) + Number(EdocsApi.getAttributeValue("Car_related").value) + Number(EdocsApi.getAttributeValue("Other_costs").value), text: null });
+    EdocsApi.setAttributeValue({ code: "Transportation", value: Number(EdocsApi.getAttributeValue("Flight").value) + Number(EdocsApi.getAttributeValue("Taxi").value) + Number(EdocsApi.getAttributeValue("PublicTransport").value), text: null });
   }
-}
-function onButtonPushKnopka() {
-  setCalculationOfValues();
 }
 
 function setmoney_per_day() {
-  debugger;
   const travelDirection = EdocsApi.getAttributeValue("travelDirection");
   if (travelDirection.value) {
     switch (travelDirection.value) {
@@ -428,7 +414,7 @@ function onChangeCar_relatedENG() {
 function onChangePublicTransportENG() {
   setCalculationOfValues();
 }
-function onChangeOther_costsENG() {
+function onChangeother_costsENG() {
   setCalculationOfValues();
 }
 function onChangedays() {
